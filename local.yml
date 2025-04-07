@@ -5,5 +5,5 @@
     - name: Create test file
       ansible.builtin.file:
         src: files/test
-        dst: /tmp/ansible-test/test
+        dest: /tmp/ansible-test/test
         mode: '0600'
