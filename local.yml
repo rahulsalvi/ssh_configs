@@ -1,6 +1,9 @@
 ---
-- name: create test file
-  ansible.builtin.file:
-    src: files/test
-    dst: /tmp/ansible-test/test
-    mode: '0600'
+- name: Set up ssh config
+  hosts: all
+  tasks:
+    - name: Create test file
+      ansible.builtin.file:
+        src: files/test
+        dst: /tmp/ansible-test/test
+        mode: '0600'
