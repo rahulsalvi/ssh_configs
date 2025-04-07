@@ -3,7 +3,7 @@
   hosts: all
   tasks:
     - name: Create test file
-      ansible.builtin.file:
+      ansible.builtin.copy:
         src: files/test
         dest: /tmp/ansible-test/test
         mode: '0600'
