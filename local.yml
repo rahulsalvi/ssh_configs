@@ -95,11 +95,11 @@
         path: /tmp/step_ed25519_token
       register: step_ed25519_token_exists
     - name: Generate RSA key and certificate
-      ansible.builtin.command: step-cli ssh certificate --force --insecure --no-password --host --kty=RSA --size=4096 --token={{ lookup('ansible.builtin.file', '/tmp/step_rsa_token') }} {{ ansible_hostname }}.ipn.rahulsalvi.com /etc/ssh/ssh_host_rsa_key
+      ansible.builtin.command: step-cli ssh certificate --force --insecure --no-password --host --kty=RSA --size=4096 --token={{ lookup('ansible.builtin.file', '/tmp/step_rsa_token') }} {{ ansible_hostname }} /etc/ssh/ssh_host_rsa_key
       changed_when: true
       when: step_rsa_token_exists.stat.exists
     - name: Generate ED25519 key and certificate
-      ansible.builtin.command: step-cli ssh certificate --force --insecure --no-password --host --kty=OKP --crv=Ed25519 --token={{ lookup('ansible.builtin.file', '/tmp/step_ed25519_token') }} {{ ansible_hostname }}.ipn.rahulsalvi.com /etc/ssh/ssh_host_ed25519_key
+      ansible.builtin.command: step-cli ssh certificate --force --insecure --no-password --host --kty=OKP --crv=Ed25519 --token={{ lookup('ansible.builtin.file', '/tmp/step_ed25519_token') }} {{ ansible_hostname }} /etc/ssh/ssh_host_ed25519_key
       changed_when: true
       when: step_ed25519_token_exists.stat.exists
     - name: Remove ECDSA key

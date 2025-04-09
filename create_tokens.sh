@@ -7,5 +7,6 @@ if [ -z "$1" ]; then
 fi
 
 HOSTNAME="$1"
-step-cli ca token --ssh --cert-not-after=168h --host --principal "${HOSTNAME}.local" --principal "${HOSTNAME}.ipn.rahulsalvi.com" "${HOSTNAME}" >/tmp/step_rsa_token
-step-cli ca token --ssh --cert-not-after=168h --host --principal "${HOSTNAME}.local" --principal "${HOSTNAME}.ipn.rahulsalvi.com" "${HOSTNAME}" >/tmp/step_ed25519_token
+echo "Creating tokens for ${HOSTNAME}"
+step-cli ca token --ssh --cert-not-after=168h --host --principal "${HOSTNAME}" --principal "${HOSTNAME}.local" --principal "${HOSTNAME}.ipn.rahulsalvi.com" "${HOSTNAME}" >/tmp/step_rsa_token
+step-cli ca token --ssh --cert-not-after=168h --host --principal "${HOSTNAME}" --principal "${HOSTNAME}.local" --principal "${HOSTNAME}.ipn.rahulsalvi.com" "${HOSTNAME}" >/tmp/step_ed25519_token
