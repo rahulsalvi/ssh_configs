@@ -1,9 +1,129 @@
+# vim: ft=yaml.ansible
 ---
 - name: Set up ssh config
   hosts: all
   tasks:
-    - name: Create test file
+    # Set up systemd
+    - name: Copy systemd unit and timer
       ansible.builtin.copy:
-        src: files/test
-        dest: /tmp/ansible-test/test
-        mode: '0600'
+        src: "files/systemd/update_ssh_configs.{{ item }}"
+        dest: "/etc/systemd/system/update_ssh_configs.{{ item }}"
+        mode: "0644"
+      loop:
+        - service
+        - timer
+    - name: Enable systemd timer
+      ansible.builtin.systemd_service:
+        name: update_ssh_configs.timer
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    # Set up step
+    - name: Install step-cli
+      community.general.pacman:
+        name: step-cli
+        state: present
+    - name: Get root certificate fingerprint
+      ansible.builtin.command: step-cli certificate fingerprint ext/pki/tls/28919390.crt
+      register: root_fingerprint
+      changed_when: true
+    - name: Bootstrap step-ca
+      ansible.builtin.command:
+        cmd: step-cli ca bootstrap --force --ca-url https://step-ca.ipn.rahulsalvi.com --fingerprint {{ root_fingerprint.stdout }}
+        creates: /root/.step/config/defaults.json
+
+    # Set up /etc/ssh directory
+    - name: Copy config files
+      ansible.builtin.copy:
+        src: "files/ssh/{{ item }}"
+        dest: "/etc/ssh/{{ item }}"
+        mode: "0644"
+      loop:
+        - ssh_config
+        - sshd_config
+    - name: Copy config directories
+      ansible.builtin.copy:
+        src: "files/ssh/{{ item }}"
+        dest: "/etc/ssh"
+        mode: "0644"
+      loop:
+        - ssh_config.d
+        - sshd_config.d
+    - name: Remove small Diffie-Hellman moduli
+      ansible.builtin.shell: awk -i inplace '$5 >= 3071' /etc/ssh/moduli
+      changed_when: true
+    - name: Create trusted user CA keys file
+      ansible.builtin.assemble:
+        src: ext/pki/ssh/user_ca
+        dest: /etc/ssh/trusted_user_ca_keys
+        mode: "0644"
+    - name: Create global known_hosts file
+      ansible.builtin.template:
+        src: templates/known_hosts.j2
+        dest: /etc/ssh/ssh_known_hosts
+        mode: "0644"
+
+    # Create ssh group
+    - name: Create ssh group
+      ansible.builtin.group:
+        name: ssh
+        state: present
+
+    # Renew host certificates if they exist
+    - name: Check if certificates exist
+      ansible.builtin.stat:
+        path: /etc/ssh/ssh_host_{{ item }}_key-cert.pub
+      register: ssh_certs_exists
+      loop:
+        - rsa
+        - ed25519
+    - name: Renew certificates
+      # remove "-cert.pub" from certificate filename to get key filename
+      ansible.builtin.command: step-cli ssh renew --force {{ item.stat.path }} {{ item.stat.path[:-9] }}
+      changed_when: true
+      when: item.stat.exists
+      with_items: "{{ ssh_certs_exists.results }}"
+
+    # Generate host keys and certificates if we have tokens
+    - name: Check if step RSA token exists
+      ansible.builtin.stat:
+        path: /tmp/step_rsa_token
+      register: step_rsa_token_exists
+    - name: Check if step ED25519 token exists
+      ansible.builtin.stat:
+        path: /tmp/step_ed25519_token
+      register: step_ed25519_token_exists
+    - name: Generate RSA key and certificate
+      ansible.builtin.command: step-cli ssh certificate --force --insecure --no-password --host --kty=RSA --size=4096 --token={{ lookup('ansible.builtin.file', '/tmp/step_rsa_token') }} {{ ansible_hostname }}.ipn.rahulsalvi.com /etc/ssh/ssh_host_rsa_key
+      changed_when: true
+      when: step_rsa_token_exists.stat.exists
+    - name: Generate ED25519 key and certificate
+      ansible.builtin.command: step-cli ssh certificate --force --insecure --no-password --host --kty=OKP --crv=Ed25519 --token={{ lookup('ansible.builtin.file', '/tmp/step_ed25519_token') }} {{ ansible_hostname }}.ipn.rahulsalvi.com /etc/ssh/ssh_host_ed25519_key
+      changed_when: true
+      when: step_ed25519_token_exists.stat.exists
+    - name: Remove ECDSA key
+      ansible.builtin.file:
+        path: /etc/ssh/{{ item }}
+        state: absent
+      loop:
+        - ssh_host_ecdsa_key
+        - ssh_host_ecdsa_key.pub
+    - name: Cleanup token files
+      ansible.builtin.file:
+        path: /tmp/step_{{ item }}_token
+        state: absent
+      loop:
+        - rsa
+        - ed25519
+
+    # Restart sshd to pick up new changes
+    - name: Mask sshdgenkeys
+      ansible.builtin.systemd_service:
+        name: sshdgenkeys
+        masked: true
+    - name: Restart sshd
+      ansible.builtin.systemd_service:
+        name: sshd
+        state: restarted
+        enabled: true

@@ -1,0 +1,6 @@
+[Unit]
+Description=Runs ansible-pull to get ssh configuration
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ansible-pull -U https://github.com/rahulsalvi/ssh_configs.git -i hosts
