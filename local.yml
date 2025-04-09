@@ -24,6 +24,7 @@
       community.general.pacman:
         name: step-cli
         state: present
+      when: ansible_facts['distribution'] == "Archlinux"
     - name: Get root certificate fingerprint
       ansible.builtin.command: step-cli certificate fingerprint ext/pki/tls/28919390.crt
       register: root_fingerprint
@@ -122,6 +123,7 @@
       ansible.builtin.systemd_service:
         name: sshdgenkeys
         masked: true
+      when: ansible_facts['distribution'] == "Archlinux"
     - name: Restart sshd
       ansible.builtin.systemd_service:
         name: sshd
