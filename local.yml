@@ -64,6 +64,15 @@
         src: templates/known_hosts.j2
         dest: /etc/ssh/ssh_known_hosts
         mode: "0644"
+    # Create this link so that the same settings file works on both
+    - name: Symlink /usr/lib/openssh to /usr/lib/ssh on ubuntu
+      ansible.builtin.file:
+        src: /usr/lib/openssh
+        dest: /usr/lib/ssh
+        owner: root
+        group: root
+        state: link
+      when: ansible_facts['distribution'] == "Ubuntu"
 
     # Create ssh group
     - name: Create ssh group
